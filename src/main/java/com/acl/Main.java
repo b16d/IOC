@@ -1,6 +1,5 @@
 package com.acl;
 
-import com.acl.ioc.annotation.MyInject;
 import com.acl.ioc.annotation.MyService;
 
 import java.io.BufferedReader;
