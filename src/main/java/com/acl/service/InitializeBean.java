@@ -1,6 +1,7 @@
 package com.acl.service;
 
 import com.acl.exception.BadConstructor;
+import com.acl.exception.CyclicDependency;
 import com.acl.ioc.annotation.MyService;
 import com.acl.scanner.ClassScanner;
 
@@ -31,17 +32,19 @@ public class InitializeBean {
                 throw new BadConstructor("Too many constructors for class: " + getClass().getName() + " only one is expected");
             } else {
                 try {
-                    createObject(c);
+                    createObject(c, new ArrayList<>());
                 } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
                     throw new RuntimeException(e);
                 }
             }
         });
-
     }
 
-    void createObject(Class<?> classToCreate) throws InvocationTargetException, InstantiationException, IllegalAccessException {
+    void createObject(Class<?> classToCreate, List<String> parentObjects) throws InvocationTargetException, InstantiationException, IllegalAccessException {
 
+        if (parentObjects.contains(classToCreate.getName())) {
+            throw new CyclicDependency("Cyclic dependency check parents for this class: " + classToCreate);
+        }
         if (classToCreate.getDeclaredFields().length == 0) {
             Constructor<?> constructor = classToCreate.getDeclaredConstructors()[0];
             Object o = constructor.newInstance();
@@ -54,7 +57,8 @@ public class InitializeBean {
             List<Object> listOfParameters = new ArrayList<>();
             for (Class<?> cl : ct.getParameterTypes()) {
                 if (objectMapName.get(cl.getName()) == null) { // case when object is not found we need to create it
-                    createObject(cl);
+                    parentObjects.add(classToCreate.getName());
+                    createObject(cl, parentObjects);
                     listOfParameters.add(objectMapName.get(cl.getName()));
 
                 } else {
@@ -72,5 +76,9 @@ public class InitializeBean {
 
     public Map<String, Object> getObjectMapName() {
         return objectMapName;
+    }
+
+    public Object getBean(String className) {
+        return objectMapName.get(className);
     }
 }
